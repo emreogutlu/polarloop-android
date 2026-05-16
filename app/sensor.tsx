@@ -6,7 +6,6 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
   ActivityIndicator,
   Alert
 } from 'react-native';
@@ -18,16 +17,7 @@ import { usePolarSession } from '@/hooks/usePolarSession';
 import { Device } from '@/hooks/types';
 
 
-const { width } = Dimensions.get('window');
 const SENSOR_IMAGE = require('@/assets/images/sensor.png');
-
-/* TODO's
- * Check BLE permissions, I believe there are many unnecessary operations
- * Check scan & connection behavior for multiple devices by the time I receive the watch -> bu yatti gibi ya, multiple device yok
- * Prettify battery information
- * Flush batch array if it overloads the memory?
- * Need to gracefully handle unexpected stream closures
-*/
 
 const Sensor: React.FC = () => {
   const colors = useAppColors();
@@ -94,28 +84,7 @@ const Sensor: React.FC = () => {
 
     const ftuSub = sensor.emitter.addListener('askFtuConfig', async () => {
       console.log('Sensor asked for FTU config');
-
-      try {
-        // const ftu = await session.fetchUserFtuConfig(); //TODO remove this
-
-        // await sensor.setUserFtuConfig({
-        //   gender: ftu.gender,
-        //   birthDate: ftu.birthDate,
-        //   height: ftu.height,
-        //   weight: ftu.weight,
-        //   maxHeartRate: ftu.maxHeartRate,
-        //   vo2Max: ftu.vo2Max,
-        //   restingHeartRate: ftu.restingHeartRate,
-        //   trainingBackground: ftu.trainingBackground,
-        //   deviceTime: new Date().toISOString().split('.')[0] + 'Z',
-        //   typicalDay: ftu.typicalDay.trim().toUpperCase().replace(/[\s-]+/g, '_'),
-        //   sleepGoalMinutes: ftu.sleepGoal,
-        // });
-      } 
-      catch (error) {
-        console.log('ERROR: Failed to set FTU config:', error);
-      }
-    })
+    });
 
     return () => {
       ppiSub.remove();
@@ -220,11 +189,12 @@ const Sensor: React.FC = () => {
     const now = Date.now();
     const windowStart = now - session.HR_WINDOW_MS;
 
+    const scaleMinHr = 0;
+    const scaleMaxHr = 220;
     const minHr = Math.min(...session.hrChartData.map((s) => s.hr));
     const maxHr = Math.max(...session.hrChartData.map((s) => s.hr));
     const latestHr = session.hrChartData[session.hrChartData.length - 1].hr;
-
-    const hrRange = Math.max(maxHr - minHr, 1);
+    const hrRange = scaleMaxHr - scaleMinHr;
 
     const polylinePoints = session.hrChartData
       .map((sample) => {
@@ -232,9 +202,11 @@ const Sensor: React.FC = () => {
           paddingLeft +
           ((sample.timestamp - windowStart) / session.HR_WINDOW_MS) * plotWidth;
 
+        const clampedHr = Math.max(scaleMinHr, Math.min(scaleMaxHr, sample.hr));
+
         const y =
           paddingTop +
-          (1 - (sample.hr - minHr) / hrRange) * plotHeight;
+          (1 - (clampedHr - scaleMinHr) / hrRange) * plotHeight;
 
         return `${x},${y}`;
       })
@@ -247,7 +219,7 @@ const Sensor: React.FC = () => {
       paddingRight,
       paddingTop,
       plotHeight,
-      latestHr,
+      latestHr, 
       minHr,
       maxHr,
       polylinePoints,
@@ -259,9 +231,9 @@ const Sensor: React.FC = () => {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       
       <ScrollView
-  showsVerticalScrollIndicator={false}
-  contentContainerStyle={{ paddingBottom: 24 }}
->
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
 
         {/* ─── CONNECTION STATUS ─── */}
         <View style={[styles.statusRectangle, { backgroundColor: colors.cardBgAlt, shadowColor: colors.shadowColor }]}>
@@ -288,7 +260,7 @@ const Sensor: React.FC = () => {
         </View>
 
         {/* ─── HR CHART ─── */}
-        <View style={[{ backgroundColor: colors.cardBgAlt, shadowColor: colors.shadowColor }]}>
+        <View style={[styles.hrCard, { backgroundColor: colors.cardBgAlt, shadowColor: colors.shadowColor }]}>
           <View>
             <Text style={[{ color: colors.textPrimary }]}>Live Heart Rate (last 5 min)</Text>
             <Text style={[{ color: colors.textSecondary }]}>
@@ -365,7 +337,7 @@ const Sensor: React.FC = () => {
                 />
               )}
             </View>
-            <Text style={[styles.watchLabel, { color: colors.textPrimary }]}>Polar Sensor</Text>
+            <Text style={[styles.watchLabel, { color: colors.textPrimary }]}>Polar Loop</Text>
           </TouchableOpacity>
         </View>
 
@@ -425,14 +397,14 @@ const Sensor: React.FC = () => {
                     onPress={() => {
                       if (connectedDevice?.id === device.id) {
                         handleDisconnect();
-                      } else {
+                      } 
+                      else {
                         handleConnect(device.id);
                       }
                     }}
                   disabled={isConnecting !== null}
                 >
                   <View style={styles.deviceInfoRow}>
-                    {/*<Ionicons name={getSignalIcon(device.rssi)} size={18} color={getSignalColor(device.rssi)} />*/}
                     <View style={styles.deviceTextCol}>
                       <Text style={[styles.deviceNameText, { color: colors.textPrimary }]}numberOfLines={2}>{device.name || 'Unknown Device'}</Text>
                     </View>
@@ -475,78 +447,171 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  scrollContent: {
+    paddingBottom: 28,
+  },
+
   statusRectangle: {
-    margin: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 12,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
 
   statusText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
+    lineHeight: 22,
   },
 
   connectedStatusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
 
   connectedDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
     backgroundColor: '#5CB89A',
   },
 
   statusTextConnected: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
+    lineHeight: 20,
   },
 
   disconnectBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 999,
   },
 
   disconnectBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  hrCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+
+  hrHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+
+  hrTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+
+  hrSubtitle: {
+    marginTop: 3,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+
+  hrValue: {
+    fontSize: 34,
+    fontWeight: '800',
+    lineHeight: 38,
+  },
+
+  hrUnit: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  chartWrapper: {
+    alignItems: 'center',
+    marginTop: 4,
+  },
+
+  chartPlaceholder: {
+    minHeight: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+
+  chartPlaceholderText: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  chartStatsRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+  },
+
+  chartStatText: {
+    fontSize: 12,
     fontWeight: '600',
   },
 
   sectionContainer: {
-    margin: 16,
+    marginHorizontal: 16,
+    marginVertical: 12,
   },
 
   sectionLabel: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     marginBottom: 10,
+    letterSpacing: 0.2,
   },
 
   largeWatchCard: {
-    padding: 20,
-    borderRadius: 12,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    borderRadius: 20,
     alignItems: 'center',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
 
   watchImageWrapper: {
-    width: 110,
-    height: 110,
+    width: 118,
+    height: 118,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 6,
   },
 
   largeWatchImage: {
-    width: 110,
-    height: 110,
+    width: 118,
+    height: 118,
   },
 
   sensorImageFallback: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -554,32 +619,42 @@ const styles = StyleSheet.create({
   watchLabel: {
     marginTop: 8,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
   scanSection: {
-    margin: 16,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 16,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 20,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
 
   scanHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 4,
   },
 
   sectionLabelInline: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
 
   scanButton: {
+    minWidth: 88,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 9,
+    borderRadius: 999,
     backgroundColor: '#5CB89A',
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
   },
@@ -590,58 +665,66 @@ const styles = StyleSheet.create({
 
   scanButtonText: {
     color: '#FFF',
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
   },
 
   bleWarning: {
     marginTop: 12,
+    padding: 10,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    backgroundColor: 'rgba(227, 201, 55, 0.12)',
   },
 
   bleWarningText: {
+    flex: 1,
     fontSize: 14,
+    fontWeight: '600',
     color: '#E3C937',
   },
 
   scanningIndicator: {
-    paddingVertical: 24,
+    paddingVertical: 28,
     alignItems: 'center',
   },
 
   bluetoothIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    marginBottom: 10,
+    marginBottom: 12,
   },
 
   scanningText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
   scanningHint: {
-    marginTop: 4,
+    marginTop: 5,
     fontSize: 13,
+    fontWeight: '500',
   },
 
   deviceListContainer: {
-    marginTop: 12,
+    marginTop: 14,
   },
 
   listHeader: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 8,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginBottom: 6,
   },
 
   deviceRow: {
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -650,15 +733,18 @@ const styles = StyleSheet.create({
 
   deviceInfoRow: {
     flex: 1,
+    minWidth: 0,
   },
 
   deviceTextCol: {
     flex: 1,
+    minWidth: 0,
   },
 
   deviceNameText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
+    lineHeight: 20,
   },
 
   deviceActionGroup: {
@@ -666,36 +752,40 @@ const styles = StyleSheet.create({
   },
 
   connectBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 999,
   },
 
   connectBtnText: {
     color: '#5CB89A',
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '800',
   },
 
   connectedBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 999,
   },
 
   connectedBadgeText: {
     color: '#5CB89A',
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '800',
   },
 
   emptyState: {
-    paddingVertical: 24,
+    paddingVertical: 30,
     alignItems: 'center',
     gap: 8,
   },
 
   emptyStateText: {
     fontSize: 14,
+    fontWeight: '500',
     textAlign: 'center',
+    lineHeight: 20,
   },
 });
 
