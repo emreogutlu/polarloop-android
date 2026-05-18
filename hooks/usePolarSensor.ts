@@ -13,8 +13,6 @@ async function requestBLEPermissions(): Promise<boolean> {
   if (Platform.OS === 'ios') return true; //buse did it
 
   if (Platform.OS === 'android') {
-    //TODO bluetooth ve konum acik degilse acmani istesin
-
     const apiLevel = Platform.Version;
 
     if (typeof apiLevel === 'number' && apiLevel >= 31) {
@@ -29,7 +27,7 @@ async function requestBLEPermissions(): Promise<boolean> {
       );
 
       if (!allGranted) {
-        Alert.alert('Permissions Required', 'Bluetooth and Location permissions are required.');
+        Alert.alert('Permissions Required', 'Bluetooth and Location permissions are required');
         return false;
       }
 
@@ -63,11 +61,11 @@ export function usePolarSensor() {
 
   async function helloPolar() {
     if (!PolarModule || typeof PolarModule.sayHello !== 'function') {
-      Alert.alert('Unavailable', 'Polar SDK is not available on this device.');
+      Alert.alert('Unavailable', 'Polar SDK is not available on this device');
       return;
     }
     const result = await PolarModule.sayHello();
-    console.log(result);
+    console.log(`[INFO] ${result}`);
   }
 
   async function startPolar(): Promise<boolean> {
@@ -86,20 +84,15 @@ export function usePolarSensor() {
       return true;
     } 
     catch (error) {
-      console.error('Failed to start Polar SDK:', error);
-      Alert.alert('Error', 'Failed to initialize Polar SDK.');
+      console.error(`[ERROR] Failed to start Polar SDK: ${error}`);
+      Alert.alert('Error', 'Failed to initialize Polar SDK');
       return false;
     }
   }
 
   async function startScan() {
     if (!PolarModule) {
-      Alert.alert(
-        'Error',
-        Platform.OS === 'ios'
-          ? 'Sorry! Polar BLE not available on iOS yet.'
-          : 'Polar SDK not available on this platform'
-      );
+      Alert.alert('Error', 'Polar SDK not available on this platform');
       return;
     }
 
@@ -123,15 +116,15 @@ export function usePolarSensor() {
     }
     catch (error) {
       setIsScanning(false);
-      const message = error instanceof Error ? error.message : 'Failed to scan for Polar devices.';
+      const message = "Failed to scan for Polar devices";
       setScanError(message);
-      console.error('Failed to scan for Polar devices:', error);
+      console.log(`[ERROR] ${message}`);
     }
   }
 
   async function stopScan() {
     setIsScanning(false);
-    console.log("Stopped scanning");
+    console.log("[INFO] Stopped scanning");
   }
 
 
@@ -142,10 +135,10 @@ export function usePolarSensor() {
     
     try {
       await PolarModule.connectToDevice(deviceId, isRecovery);
-      console.log(`${deviceId} connected successfully`);
+      console.log(`[INFO] ${deviceId} connected successfully`);
     } 
     catch (error) {
-      console.error(error);
+      console.log("[ERROR] Failed to connect to the device");
     }
   }
 
@@ -157,7 +150,7 @@ export function usePolarSensor() {
       await PolarModule.disconnectFromDevice(connectedDevice.id);
     } 
     catch (error) {
-      console.error(error);
+      console.log("[ERROR] Failed to disconnect");
     }
   }
 
@@ -170,22 +163,22 @@ export function usePolarSensor() {
 
     try {
         await PolarModule.startHrStreaming();
-        console.log('HR streaming started');
+        console.log(`[INFO] HR streaming started`);
     } 
     catch (error) {
-        console.error('Failed to start HR streaming:', error);
+        console.log(`[ERROR] Failed to start HR streaming`);
     }
   }
 
 
   useEffect(() => {
     if (!emitter) {
-        console.log('Polar BLE not available - running in simulator or native module not linked');
+        console.log(`[ERROR] Polar BLE not available - running in simulator or native module not linked`);
         return;
     }
 
     const foundSub = emitter.addListener('onDeviceFound', (event) => {
-      console.log('Device found:', event);
+      console.log('[INFO] Device found:', event);
        //TODO how to remove undiscovereable devices?
       setDiscoveredDevices(prev => {
         const next = new Map(prev);
@@ -244,14 +237,11 @@ export function usePolarSensor() {
     });
 
     const recoveredSub = emitter.addListener('onRecoveredPpiData', (data) => {
-      console.log(data);
-      //const recoveredSamples = buildSamplesFromPpis(data.startTimestamp, data.ppis as number[]);
-      //appendSamplesToRuntimeAndChart(recoveredSamples, 'offline');
+      console.log(`[INFO] PPI data recovering`);
     });
 
     const recoveryCompleteSub = emitter.addListener('onPpiRecoveryComplete', (data) => {
-      console.log('PPI recovery complete. Recovered data:', data);
-      //void persistStreamState();
+      console.log(`[INFO] PPI recovery complete. Recovered data: {sampleCount: ${data.sampleCount}, recordCount: ${data.recordCount}}`);
     });
 
 
@@ -271,29 +261,26 @@ export function usePolarSensor() {
   /* --- OFFLINE DATA RECOVERY --- */
 
   const switchToOfflineRecordingMode = async () => {
-    console.log('App moved to background');
+    console.log(`[INFO] App moved to background`);
     if (PolarModule) {
       PolarModule.startOfflineRecordingForPpi();
     }
   };
 
+
   const recoverOfflineDataAndResumeRealtime = async () => {
-    console.log('App returned to foreground');
+    console.log(`[INFO] App returned to foreground`);
 
     if (!PolarModule) {
-      console.log('PolarModule not available - skipping offline data recovery');
+      console.log(`[WARN] PolarModule not available - skipping offline data recovery`);
       return;
     }
 
     try {
       await PolarModule.recoverOfflinePpiAndResumeRealtime();
     }
-    catch (e: any) {
-      if (e?.message?.includes('No device connected for recovery')) {
-        console.log('No device connected - skipping offline data recovery');
-        return;
-      }
-      console.error('FAILED AT recoverOfflinePpiAndResumeRealtime', e);
+    catch (error) {
+      console.log(`[ERROR] FAILED AT recoverOfflinePpiAndResumeRealtime`);
     }
   };
 

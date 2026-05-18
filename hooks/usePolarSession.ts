@@ -70,14 +70,14 @@ export function usePolarSession({
 
     ppiBufferRef.current.push(...samples);
     sensorTimeRef.current = samples[samples.length - 1].timestamp;
-    console.log('PPIs:', samples);
+    console.log('[INFO] PPIs:', samples);
   }, []);
 
 
   /* --- HR STREAM --- */
 
   const hrStreaming = useCallback((data: { "hr": number}) => {
-    console.log('HR:', data);
+    console.log('[INFO] HR:', data);
     if (data.hr == 0) return;
 
     const now = Date.now();
@@ -128,6 +128,8 @@ export function usePolarSession({
 
     resetSessionState();
     await clearPersistedStreamState();
+
+    console.log("[INFO] Stream stopped");
   }, [resetSessionState]);
 
 
@@ -203,6 +205,10 @@ export function usePolarSession({
 
     if (samples.length === 0) return;
 
+    console.log(
+      `[INFO] Recovered PPIs: ${samples.map((sample) => `${sample.ppi}`).join(', ')}`
+    );
+    
     ppiBufferRef.current.push(...samples);
 
     const lastTimestamp = samples[samples.length - 1].timestamp;
@@ -223,10 +229,10 @@ export function usePolarSession({
       sessionDeviceIdRef.current = state.sessionDeviceId;
       setActiveSessionId(state.sessionId);
 
-      console.log('Restored Polar stream state:', state);
+      console.log('[INFO] Restored Polar stream state:', state);
     } 
     catch (error) {
-      console.log('ERROR: Failed to restore Polar stream state:', error);
+      console.log('[ERROR] Failed to restore Polar stream state:', error);
     }
   }
 
@@ -240,7 +246,7 @@ export function usePolarSession({
       await AsyncStorage.setItem(POLAR_STREAM_STATE_KEY, JSON.stringify(state));
     } 
     catch (error) {
-      console.log('ERROR: Failed to persist Polar stream state:', error);
+      console.log('[ERROR] Failed to persist Polar stream state:', error);
     }
   }
 
@@ -249,7 +255,7 @@ export function usePolarSession({
       await AsyncStorage.removeItem(POLAR_STREAM_STATE_KEY);
     } 
     catch (error) {
-      console.log('ERROR: Failed to clear Polar stream state:', error);
+      console.log('[ERROR] Failed to clear Polar stream state:', error);
     }
   }
 

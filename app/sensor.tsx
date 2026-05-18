@@ -57,17 +57,16 @@ const Sensor: React.FC = () => {
     const connectRecoverySub = sensor.emitter.addListener(
       'onBatteryLevel',
       async (event) => {
-        console.log(`Battery level is sent: ${event.batteryLevel} on ${event.deviceId}`);
+        console.log(`[INFO] Battery level is sent: ${event.batteryLevel} on ${event.deviceId}`);
         if (!connectFlowRunningRef.current) return;
 
         try {
           if (event.recoveryInProgress && session.getHasPersistedSession() && session.getPersistedSessionDeviceId() === event.deviceId) {
-            console.log('Reconnected, recovering offline PPI');
+            console.log('[INFO] Reconnected, recovering offline PPI');
             await sensor.recoverOfflineDataAndResumeRealtime();
           }
           else {
-            console.log('New connection, checking for offline data then starting new session');
-            await sensor.recoverOfflineDataAndResumeRealtime();
+            console.log('[INFO] New connection, new session');
             await session.startStream(event.deviceId);
           }
         }
@@ -83,7 +82,7 @@ const Sensor: React.FC = () => {
     });
 
     const ftuSub = sensor.emitter.addListener('askFtuConfig', async () => {
-      console.log('Sensor asked for FTU config');
+      console.log('[INFO] Sensor asked for FTU config');
     });
 
     return () => {
@@ -110,7 +109,7 @@ const Sensor: React.FC = () => {
       await sensor.connectToDevice(deviceId, isRecovery);
     } 
     catch (e) {
-      console.log('ERROR: Connect flow failed:', e);
+      console.log('[ERROR] Connect flow failed:', e);
       connectFlowRunningRef.current = false;
     }
   }, [sensor, session]);
@@ -118,13 +117,7 @@ const Sensor: React.FC = () => {
 
   useEffect(() => {
     if (connectedDevice) {
-      sensor.startHrStreaming().catch((e: any) => {
-        if (e?.message?.includes('No device connected')) {
-          console.log('startHrStreaming: No device connected, skipping');
-          return;
-        }
-        console.log('ERROR: startHrStreaming failed:', e);
-      });
+      sensor.startHrStreaming();
       if (session.getPersistedSessionDeviceId() !== connectedDevice.id) session.startStream(connectedDevice.id);
     }
   }, [connectedDevice]);
@@ -135,17 +128,10 @@ const Sensor: React.FC = () => {
 
     connectFlowRunningRef.current = true;
 
-    try {
-      await session.stopStream();
-      await sensor.disconnectDevice();
-      await session.clearPersistedStreamState();
-    }
-    catch (error) {
-      console.log('ERROR: Disconnect flow failed:', error);
-    }
-    finally {
-      connectFlowRunningRef.current = false;
-    }
+    await session.stopStream();
+    await sensor.disconnectDevice();
+    await session.clearPersistedStreamState();
+    connectFlowRunningRef.current = false;
   }, [sensor, session]);
 
 

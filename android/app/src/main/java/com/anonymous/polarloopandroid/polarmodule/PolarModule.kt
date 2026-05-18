@@ -118,7 +118,7 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                     params.putString("deviceId", deviceId)
                     params.putString("name", info.name)
 
-                    Log.d("POLAR_DEBUG_EMRE", "Connected device info: ${info}")
+                    Log.d("POLAR_DEBUG", "Connected device info: ${info}")
 
                     sendEvent("onDeviceConnected", params)
                 }
@@ -131,12 +131,12 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
                 override fun bleSdkFeatureReady(identifier: String, feature: PolarBleApi.PolarBleSdkFeature) {
                     if (feature == PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING) {
-                        Log.d("POLAR_DEBUG_EMRE", "ONLINE STREAMING READY")
+                        Log.d("POLAR_DEBUG", "ONLINE STREAMING READY")
                     }
                 }
 
                 override fun batteryLevelReceived(identifier: String, level: Int) {
-                    Log.d("POLAR_DEBUG_EMRE", "BATTERY LEVEL: $level")
+                    Log.d("POLAR_DEBUG", "BATTERY LEVEL: $level")
 
                     val params = Arguments.createMap().apply {
                         putInt("batteryLevel", level)
@@ -150,11 +150,11 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                 }
 
                 override fun disInformationReceived(identifier: String, disInfo: DisInfo) {
-                    Log.d("POLAR_DEBUG_EMRE", "DIS info received: $disInfo")
+                    Log.d("POLAR_DEBUG", "DIS info received: $disInfo")
                 }
 
                 override fun htsNotificationReceived(identifier: String, data: PolarHealthThermometerData) {
-                    Log.d("POLAR_DEBUG_EMRE", "HTS notification received")
+                    Log.d("POLAR_DEBUG", "HTS notification received")
                 }
             }) 
                 
@@ -182,7 +182,7 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                         params.putString("deviceId", device.deviceId)
                         params.putString("name", device.name)
                         sendEvent("onDeviceFound", params)
-                        Log.d("POLAR_DEBUG_EMRE", "Device info: ${device}")
+                        Log.d("POLAR_DEBUG", "Device info: ${device}")
                         //scanDisposable?.dispose()
                 }, 
                 { 
@@ -226,7 +226,7 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     } 
 
     private fun resetConnectionState() {
-        Log.d("POLAR_DEBUG_EMRE", "Resetting connection state")
+        Log.d("POLAR_DEBUG", "Resetting connection state")
 
         hrDisposable?.dispose()
         hrDisposable = null
@@ -246,7 +246,7 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     fun disconnectFromDevice(deviceId: String, promise: Promise) { 
         try { 
             api.disconnectFromDevice(deviceId) 
-            Log.d("POLAR_DEBUG_EMRE", "Device disconnected")
+            Log.d("POLAR_DEBUG", "Device disconnected")
             resetConnectionState()
             promise.resolve("Disconnecting...") 
         } 
@@ -271,7 +271,7 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                         val params = Arguments.createMap()
                         params.putInt("hr", sample.hr)
 
-                        Log.d("POLAR_DEBUG_EMRE", "HR: $sample.hr")
+                        Log.d("POLAR_DEBUG", "HR: $sample.hr")
                         sendEvent("onHrData", params)
                     }
                 }, 
@@ -286,7 +286,7 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     private fun startPPiStreamingInternal() {
-        Log.d("POLAR_DEBUG_EMRE", "sa")
+        Log.d("POLAR_DEBUG", "sa")
         val id = deviceId ?: return
 
         ppiDisposable?.dispose()
@@ -296,7 +296,7 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
                 { ppiData ->
-                    Log.d("POLAR_DEBUG_EMRE", "as")
+                    Log.d("POLAR_DEBUG", "as")
                     val params = Arguments.createMap()
                     val ppiArray = Arguments.createArray()
 
@@ -315,7 +315,7 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                     val params = Arguments.createMap()
                     params.putString("message", error.message ?: "Unknown PPI error")
                     sendEvent("onPPiError", params)
-                    Log.d("POLAR_DEBUG_EMRE", error.message ?: "Unknown PPI error")
+                    Log.d("POLAR_DEBUG", error.message ?: "Unknown PPI error")
                 }
             )
     }
@@ -337,19 +337,19 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     private fun maybeStartPpi() {
-        Log.d("POLAR_DEBUG_EMRE", "maybeStartPpi called")
+        Log.d("POLAR_DEBUG", "maybeStartPpi called")
 
         if (!ftuCompleted) {
-            Log.d("POLAR_DEBUG_EMRE", "Skipping PPI start: FTU not completed")
+            Log.d("POLAR_DEBUG", "Skipping PPI start: FTU not completed")
             return
         }
 
         if (recoveryInProgress) {
-            Log.d("POLAR_DEBUG_EMRE", "Skipping PPI start: recovery already in progress")
+            Log.d("POLAR_DEBUG", "Skipping PPI start: recovery already in progress")
             return
         }
 
-        Log.d("POLAR_DEBUG_EMRE", "Starting PPI NOW")
+        Log.d("POLAR_DEBUG", "Starting PPI NOW")
 
         startPPiStreamingInternal()
     }
@@ -366,14 +366,14 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     private fun onDeviceReadyForFtu() {
         if (recoveryInProgress) {
-            Log.d("POLAR_DEBUG_EMRE", "Skipping FTU because recovery is in progress")
+            Log.d("POLAR_DEBUG", "Skipping FTU because recovery is in progress")
             return
         }
 
         if (ftuStarted || ftuCompleted) return
 
         ftuStarted = true
-        Log.d("POLAR_DEBUG_EMRE", "device ready, starting FTU")
+        Log.d("POLAR_DEBUG", "device ready, starting FTU")
         askFtuConfig()
     }
 
@@ -385,7 +385,7 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     @ReactMethod
     fun setUserFtuConfig(payload: ReadableMap, promise: Promise) {
-        Log.d("POLAR_DEBUG_EMRE", "Setting user FTU config")
+        Log.d("POLAR_DEBUG", "Setting user FTU config")
         try {
             val config = readableMapToFtuConfig(payload)
             userFtuConfig = config
@@ -393,20 +393,20 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             val currentDeviceId = deviceId ?: throw IllegalStateException("No device connected")
             val currentConfig = userFtuConfig ?: throw IllegalStateException("FTU config not set")
 
-            Log.d("POLAR_DEBUG_EMRE", "User FTU config is set: $userFtuConfig")
+            Log.d("POLAR_DEBUG", "User FTU config is set: $userFtuConfig")
 
             api.doFirstTimeUse(currentDeviceId, currentConfig)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                 {
-                    Log.d("POLAR_DEBUG_EMRE", "FTU completed")
+                    Log.d("POLAR_DEBUG", "FTU completed")
                     ftuCompleted = true
                     ftuStarted = false
                     maybeStartPpi()
                 },
                 { error ->
                     ftuStarted = false
-                    Log.e("POLAR_DEBUG_EMRE", "FTU failed", error)
+                    Log.e("POLAR_DEBUG", "FTU failed", error)
                 }
             )
 
@@ -465,7 +465,7 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                     api.startOfflineRecording(id, PolarBleApi.PolarDeviceDataType.PPI, null, null).blockingAwait()
                 }
 
-                Log.e("POLAR_DEBUG_EMRE", "startOfflineRecording")
+                Log.e("POLAR_DEBUG", "startOfflineRecording")
                 promise.resolve("Offline PPI recording started")
             } 
             catch (e: Exception) {
@@ -487,10 +487,9 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
                 try {
                     api.stopOfflineRecording(id, PolarBleApi.PolarDeviceDataType.PPI).blockingAwait()
-                    Log.d("POLAR_DEBUG_EMRE", "BURAYA GELIYON MU LA")
                 } 
                 catch (stopError: Exception) {
-                    Log.d("POLAR_DEBUG_EMRE", "No active offline PPI recording to stop: ${stopError.message}")
+                    Log.d("POLAR_DEBUG", "No active offline PPI recording to stop: ${stopError.message}")
                 }
 
                 var ppiEntries: List<PolarOfflineRecordingEntry> = emptyList()
@@ -504,7 +503,7 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                         return@repeat
                     }
                     else {
-                        Log.d("POLAR_DEBUG_EMRE", "repeated")
+                        Log.d("POLAR_DEBUG", "repeated")
                     }
                     Thread.sleep(1500)
                 }
@@ -527,7 +526,7 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                         api.removeOfflineRecord(id, entry).blockingAwait()
                     } 
                     catch (recordError: Exception) {
-                        Log.e("POLAR_DEBUG_EMRE", "Failed to process offline record ${entry.path}: ${recordError.message}")
+                        Log.e("POLAR_DEBUG", "Failed to process offline record ${entry.path}: ${recordError.message}")
                     }
                 }
 
@@ -535,8 +534,6 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                 completionParams.putInt("recordCount", ppiEntries.size)
                 completionParams.putInt("sampleCount", recoveredSampleCount)
                 sendEvent("onPpiRecoveryComplete", completionParams)
-
-                Log.e("POLAR_DEBUG_EMRE", "recoverOfflinePpiAndResumeRealtime")
 
                 promise.resolve("Recovered $recoveredSampleCount samples")
             } 
@@ -566,8 +563,4 @@ class PolarModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             sendEvent("onRecoveredPpiData", params)
         }
     }
-
-
-
-
 }
